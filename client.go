@@ -31,27 +31,31 @@ func NewTeeClient(address string, timeout time.Duration, in chan<- []byte, out <
 	return t, nil
 }
 
-func (t *TeeClient) dial() *bufio.Reader {
+func (t *TeeClient) dial(r *bufio.Reader) (*bufio.Reader, error) {
 	fmt.Println("dial..")
 	var err error
 
 	t.conn, err = net.DialTimeout("tcp", t.address, t.timeout)
-	for err != nil {
-		fmt.Println(err)
-
-		time.Sleep(1 * time.Second)
-
-		t.conn, err = net.DialTimeout("tcp", t.address, t.timeout)
+	if err != nil {
+		return r, err
 	}
 
-	r := bufio.NewReader(t.conn)
+	r = bufio.NewReader(t.conn)
 
-	return r
+	return r, nil
+}
+
+func (t *TeeClient) handleWrite() {
+	for m := range t.out {
+		if t.conn != nil {
+			t.conn.Write(m)
+		}
+	}
 }
 
 func (t *TeeClient) handleConn() {
 	var err error
-	r := t.dial()
+	var r *bufio.Reader = new(bufio.Reader)
 
 	for {
 
@@ -60,34 +64,36 @@ func (t *TeeClient) handleConn() {
 			select {
 			case done := <-t.stop:
 				done <- true
-				t.conn.Close()
 				return
 			default:
-				r = t.dial()
+				r, err = t.dial(r)
+				if err != nil {
+					fmt.Println(err)
+					time.Sleep(time.Second)
+					continue
+				}
 			}
 		}
-		select {
-		case output := <-t.out:
-			t.conn.Write(output)
-		default:
-			var data []byte
-			t.conn.SetDeadline(time.Now().Add(t.timeout))
-			c, err := r.ReadByte()
-			data = append(data, c)
-			if err != nil {
-				fmt.Println(err)
-				t.conn.Close()
-			}
-			t.in <- data
 
+		var data []byte
+		t.conn.SetDeadline(time.Now().Add(t.timeout))
+		c, err := r.ReadByte()
+		data = append(data, c)
+		if err != nil {
+			fmt.Println(err)
+			t.conn.Close()
 		}
+		t.in <- data
+
 	}
 }
 
 func (t *TeeClient) Close() {
 	done := make(chan bool)
 	t.stop <- done
-	t.conn.Close()
+	if t.conn != nil {
+		t.conn.Close()
+	}
 	<-done
 	return
 }

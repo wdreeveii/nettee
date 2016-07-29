@@ -47,7 +47,8 @@ SignalLoop:
 			break SignalLoop
 		}
 	}
-
-	s.Close()
 	c.Close()
+	s.Close()
+
+	close(out)
 }
