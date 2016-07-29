@@ -12,11 +12,11 @@ func main() {
 	go func(src chan []byte) {
 		for {
 			data := <-src
-			fmt.Println(string(data))
+			fmt.Print(string(data))
 		}
 	}(in)
 
-	c, err := NewTeeClient("sadc_ts9:4039", 5*time.Second, in, out)
+	c, err := NewTeeClient("sadc_ts9:4039", 1*time.Minute, in, out)
 	if err != nil {
 		fmt.Println(err)
 	}

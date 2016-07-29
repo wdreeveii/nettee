@@ -31,7 +31,7 @@ func NewTeeClient(address string, timeout time.Duration, in chan []byte, out cha
 	return t, nil
 }
 
-func (t *TeeClient) dial() {
+func (t *TeeClient) dial() *bufio.Reader {
 	fmt.Println("dial..")
 	var err error
 
@@ -42,17 +42,15 @@ func (t *TeeClient) dial() {
 		time.Sleep(1 * time.Second)
 
 		t.conn, err = net.DialTimeout("tcp", t.address, t.timeout)
-		fmt.Println("retry", err)
 	}
 
-	fmt.Println("final", err)
+	r := bufio.NewReader(t.conn)
 
+	return r
 }
 
 func (t *TeeClient) handleConn() {
-	t.dial()
-
-	r := bufio.NewReader(t.conn)
+	r := t.dial()
 
 	for {
 		select {
@@ -70,7 +68,7 @@ func (t *TeeClient) handleConn() {
 			if err != nil {
 				fmt.Println(err)
 				t.conn.Close()
-				t.dial()
+				r = t.dial()
 			}
 			t.in <- data
 		}
