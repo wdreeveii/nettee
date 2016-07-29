@@ -11,16 +11,16 @@ type TeeClient struct {
 	address string
 	timeout time.Duration
 
-	in  chan []byte
-	out chan []byte
+	in  chan<- []byte
+	out <-chan []byte
 
 	conn net.Conn
 	stop chan chan bool
 }
 
-func NewTeeClient(address string, timeout time.Duration, in chan []byte, out chan []byte) (*TeeClient, error) {
+func NewTeeClient(address string, timeout time.Duration, in chan<- []byte, out <-chan []byte) (*TeeClient, error) {
 	t := new(TeeClient)
-	t.stop = make(chan chan bool)
+	t.stop = make(chan chan bool, 1)
 	t.address = address
 	t.timeout = timeout
 	t.in = in
@@ -50,14 +50,23 @@ func (t *TeeClient) dial() *bufio.Reader {
 }
 
 func (t *TeeClient) handleConn() {
+	var err error
 	r := t.dial()
 
 	for {
+
+		_, err = r.Peek(1)
+		if err != nil {
+			select {
+			case done := <-t.stop:
+				done <- true
+				t.conn.Close()
+				return
+			default:
+				r = t.dial()
+			}
+		}
 		select {
-		case done := <-t.stop:
-			done <- true
-			t.conn.Close()
-			return
 		case output := <-t.out:
 			t.conn.Write(output)
 		default:
@@ -68,9 +77,9 @@ func (t *TeeClient) handleConn() {
 			if err != nil {
 				fmt.Println(err)
 				t.conn.Close()
-				r = t.dial()
 			}
 			t.in <- data
+
 		}
 	}
 }
@@ -78,6 +87,7 @@ func (t *TeeClient) handleConn() {
 func (t *TeeClient) Close() {
 	done := make(chan bool)
 	t.stop <- done
+	t.conn.Close()
 	<-done
 	return
 }
