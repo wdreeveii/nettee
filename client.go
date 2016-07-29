@@ -54,6 +54,8 @@ func (t *TeeClient) handleWrite() {
 }
 
 func (t *TeeClient) handleConn() {
+	go t.handleWrite()
+
 	var err error
 	var r *bufio.Reader = new(bufio.Reader)
 

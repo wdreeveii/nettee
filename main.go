@@ -12,13 +12,6 @@ func main() {
 	in := make(chan []byte, 10000)
 	out := make(chan []byte)
 
-	go func(src chan []byte) {
-		for {
-			data := <-src
-			fmt.Print(string(data))
-		}
-	}(in)
-
 	var s *TeeServer
 	var c *TeeClient
 	var err error
@@ -47,8 +40,8 @@ SignalLoop:
 			break SignalLoop
 		}
 	}
-	c.Close()
-	s.Close()
 
+	s.Close()
+	c.Close()
 	close(out)
 }
