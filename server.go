@@ -58,28 +58,35 @@ func (t *TeeServer) newConnectionId() (int, error) {
 }
 
 func (t *TeeServer) pubsub() {
-	for c := range t.cmd {
-		switch c.op {
-		case pub:
+	for {
+		select {
+		case done := <-t.stopPubSub:
+			done<-true
+			return
+		case data := <-t.in:
 			for _, v := range t.connections {
-				v.toClient <- c.slice
+				v.toClient <- data
 			}
-		case sub:
-					idx, err := t.newConnectionId()
-		if err != nil {
-			conn.Close()
-			continue
-		}
+		case c := <-t.cmd:
+			switch c.op {
+			case sub:
+				idx, err := t.newConnectionId()
+				if err != nil {
+					conn.Close()
+					continue
+				}
 
-		var c TeeServerClient = NewTeeServerClient(conn, idx)
+				var c TeeServerClient = NewTeeServerClient(conn, idx)
 
-		go c.handle()
+				go c.handle()
 
-		t.connections[idx] = c
+				t.connections[idx] = c
 			t.connections[c.connId] = cmd.teeServerClient
 		case unsub:
 			delete t.connections[c.connId]
 		}
+		}
+
 	}
 
 	for _, v := range t.connections {
