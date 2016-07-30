@@ -1,4 +1,4 @@
-package main
+package nettee
 
 import (
 	"bufio"
@@ -18,7 +18,7 @@ type TeeClient struct {
 	stop chan chan bool
 }
 
-func NewTeeClient(address string, timeout time.Duration, in chan<- []byte, out <-chan []byte) (*TeeClient, error) {
+func NewTeeClient(address string, timeout time.Duration, in chan<- []byte, out <-chan []byte) *TeeClient {
 	t := new(TeeClient)
 	t.stop = make(chan chan bool, 1)
 	t.address = address
@@ -28,7 +28,7 @@ func NewTeeClient(address string, timeout time.Duration, in chan<- []byte, out <
 
 	go t.handleConn()
 
-	return t, nil
+	return t
 }
 
 func (t *TeeClient) dial(r *bufio.Reader) (*bufio.Reader, error) {
@@ -84,6 +84,7 @@ func (t *TeeClient) handleConn() {
 		if err != nil {
 			fmt.Println(err)
 			t.conn.Close()
+			continue
 		}
 		t.in <- data
 

@@ -1,31 +1,37 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"github.com/wdreeveii/nettee/nettee"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 )
 
+var localAddress string
+var remoteAddress string
+var timeout time.Duration
+
+func init() {
+	flag.StringVar(&localAddress, "localAddress", "", "local address")
+	flag.StringVar(&remoteAddress, "remoteAddress", "", "remote address")
+	flag.DurationVar(&timeout, "timeout", time.Hour, "remote connection timeout")
+}
+
 func main() {
-	in := make(chan []byte, 10000)
-	out := make(chan []byte)
+	flag.Parse()
 
-	var s *TeeServer
-	var c *TeeClient
-	var err error
-
-	s, err = NewTeeServer(":8080", in, out)
-	if err != nil {
-		fmt.Println(err)
+	if localAddress == "" || remoteAddress == "" {
+		flag.PrintDefaults()
+		return
 	}
 
-	c, err = NewTeeClient("sadc_ts9:4039", 1*time.Minute, in, out)
+	t, err := nettee.NewTee(localAddress, remoteAddress, timeout)
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
-
 	e := make(chan os.Signal, 1)
 	signal.Notify(e, syscall.SIGHUP, syscall.SIGINT)
 
@@ -41,7 +47,5 @@ SignalLoop:
 		}
 	}
 
-	s.Close()
-	c.Close()
-	close(out)
+	t.Close()
 }
