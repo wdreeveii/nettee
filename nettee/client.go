@@ -32,7 +32,7 @@ func NewTeeClient(address string, timeout time.Duration, in chan<- []byte, out <
 }
 
 func (t *TeeClient) dial(r *bufio.Reader) (*bufio.Reader, error) {
-	fmt.Println("dial..")
+	fmt.Println("dial", t.address)
 	var err error
 
 	t.conn, err = net.DialTimeout("tcp", t.address, t.timeout)
